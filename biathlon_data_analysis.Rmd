@@ -5,8 +5,11 @@ date: "5 February 2018"
 output: html_document
 ---
 
-Today we are looking at data from biathlon results. 
-```{r}
+I asked a friend of mine who loves sports what data he would be interested in seeing in the sports domain and he answered "biathlon." I found a website that collects lots of data on the sport called [biathlonresults.com](https://biathlonresults.com/). I really look forward to the olympics this year, and France has a very famous biathlete Martin Fourcade, so that makes me keen to look more into this sport. Let's have a look!
+
+First thing, collecting the data from the website is not that great, they provide pdfs, and all the data from all the different events are separated so there is a lot of data cleaning up involved.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(knitr)
 womenMSdf <- read.csv(file = "biathlon_women_world_mass_start_17_12_17.csv")
 kable(head(womenMSdf))
@@ -32,14 +35,14 @@ library(ggplot2)
 ggplot(womenMSdf, aes(x=womenMSdf$Nat)) + geom_bar()
 ```
 
-#Number of penalties per country
+#Number of penalties per country normalized per number of athletes
 
 ```{r}
 library(ggplot2)
 library(sqldf)
-dfnew <- sqldf("SELECT distinct Nat,count(Nat),count(num_Penalties) FROM womenMSdf GROUP BY Nat")
-ggplot(dfnew, aes(x=dfnew$Nat)) + geom_col(aes(x=dfnew$Nat, y=(dfnew$count(num_Penalties)/dfnew$count(Nat))))
-ggplot(dfnew) + geom_col(dfnew <- sqldf("SELECT distinct Nat,count(Nat),count(num_Penalties) FROM womenMSdf GROUP BY Nat")
-)
+dfnew <- sqldf("SELECT distinct Nat,count(Nat) as num_nat,sum(num_Penalties) as num_pen FROM womenMSdf GROUP BY Nat")
+ggplot(dfnew, aes(x=dfnew$Nat)) + geom_col(aes(x=dfnew$Nat, y=(dfnew$num_pen/dfnew$num_nat)))
+ggplot(dfnew) + geom_col()
+length(dfnew$num_nat)
 ```
 
