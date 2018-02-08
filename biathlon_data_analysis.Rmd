@@ -14,59 +14,73 @@ First thing, collecting the data from the website is not that great, they provid
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(readODS)
 library(knitr)
+library(ggplot2)
+library(sqldf)
 Womendf <- read.ods("WC_biathlon_women7.5k2017-18.ods", sheet = 1)
 colnames(Womendf) <- Womendf[1,]
 Womendf <- Womendf[2:nrow(Womendf),]
 Womendf$Name <- paste(Womendf$FName, Womendf$LName, sep=" ")
-Womendf <- Womendf[,c(1, 2,5:16)]
+Womendf <- Womendf[,c(1,2,5:16)]
 kable(head(Womendf, n=10))
 ```
 
+# Features of each race
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=7}
+ggplot(Womendf, aes(x=Womendf$Date, y=as.numeric(Womendf$C_length), size=Womendf$Nentries)) + geom_point()
+ggplot(Womendf, aes(x=Womendf$Date, y=as.numeric(Womendf$C_length), size=Womendf$Elev)) + geom_point()
+```
+
+The two plots show some details about the races more visually than the table: the first race on december 1st had the least amount of athletes and was also the smallest course and had the second smallest elevation difference. The race on the 4th of december has average length, average number of athletes but higher elevation difference, same for the race on 8th december except elevation is smaller. The race on 14th december has the longest course, the most athletes and slightly higher elevation. The last race on 18th december has a longer course, lowest elevation difference, and also fewer athletes.
+
 # Length of course depending on time
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
-ggplot(Womendf, aes(x=Womendf$Res, y=as.numeric(Womendf$C_length))) + geom_point()
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=8}
+dfLength <-  Womendf[order(Womendf$Res),]
+ggplot(dfLength, aes(x=strptime(dfLength$Res, format="%M:%S", tz="PDT"), y=as.numeric(dfLength$C_length))) + geom_point()
 ```
+
+I would expect that there would be a strong correlation between length of the course and time of completion, however this plot shows that the 2 middle distances had the longest finish times, so maybe it is due to elevation difference on the course, so let's look at that next.
+
+# Result according to elevation difference in the course
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=8}
+ggplot(dfLength, aes(x=strptime(dfLength$Res, format="%M:%S", tz="PDT"), y=as.numeric(dfLength$Elev))) + geom_point()
+```
+
+The answer however shows that it's not necessarily the courses with most elevation that get the highest finish times. Let's now look at the correlation between the number of penalties and the rank in the race.
 
 # Rank according to number of penalties
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
-library(ggplot2)
-library(sqldf)
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=8}
 df <- sqldf("SELECT distinct Rank,sum(T) as total_penalties FROM Womendf GROUP BY Rank ORDER BY Rank")
-ggplot(df, aes(x=as.numeric(df$Rank), y=df$total_penalties)) + geom_point() 
-
 ggplot(df, aes(x=as.numeric(df$Rank), y=df$total_penalties)) + geom_point() +stat_summary(fun.data=mean_cl_normal) + geom_smooth(method='lm')
 ```
 
-# rank according to num of rank points obtained in championship that year
-
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-
-ggplot(womenMSdf, aes(x=womenMSdf$Rank, y=womenMSdf$WC_points)) + geom_point()
-```
-
-
+There is a tendency showcased by the linear regression on the plot but most of the points are quite far, so it seems that generally people who have more penalties tend to also rank lower so they have higher finish times, but it isn't that strong so fast athletes can make up time and really good shooters cannot always catch up to the fastest racers.
 
 #Number of participants per country
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12}
 library(ggplot2)
-ggplot(womenMSdf, aes(x=womenMSdf$Nat)) + geom_bar()
+ggplot(Womendf, aes(x=Nat)) + geom_bar() + ggtitle("Number of participants in all races per country") 
 ```
 
 #Number of penalties per country normalized per number of athletes
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12}
 library(ggplot2)
 library(sqldf)
-dfnew <- sqldf("SELECT distinct Nat,count(Nat) as num_nat,sum(num_Penalties) as num_pen FROM womenMSdf GROUP BY Nat")
-ggplot(dfnew, aes(x=dfnew$Nat)) + geom_col(aes(x=dfnew$Nat, y=(dfnew$num_pen/dfnew$num_nat)))
+dfnew <- sqldf("SELECT distinct Nat,count(Nat) as num_nat,sum(T) as num_pen FROM Womendf GROUP BY Nat")
+ggplot(dfnew, aes(x=Nat)) + geom_col(aes(x=Nat, y=(num_pen/num_nat)))
 ```
 
-
+# Are there more errors standing or laying down?
 
 ```{r}
-
+dfpen <- Womendf[,4:6]
+hist(x = c('P', 'S', 'T'), y= c(sum(as.numeric(dfpen$P)), sum(as.numeric(dfpen$S)), sum(as.numeric(dfpen$'T'))))
+pendf <- sqldf("SELECT sum(P) as Prone,sum(S) as Standing,sum(T) as Total FROM Womendf")
+kable(pendf)
 ```
-
+The table shows that there are generally more errors standing, which makes sense.
