@@ -9,19 +9,39 @@ I asked a friend of mine who loves sports what data he would be interested in se
 
 First thing, collecting the data from the website is not that great, they provide pdfs, and all the data from all the different events are separated so there is a lot of data cleaning up involved.
 
+# First look at the data
+
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(readODS)
 library(knitr)
-womenMSdf <- read.csv(file = "biathlon_women_world_mass_start_17_12_17.csv")
-kable(head(womenMSdf))
+Womendf <- read.ods("WC_biathlon_women7.5k2017-18.ods", sheet = 1)
+colnames(Womendf) <- Womendf[1,]
+Womendf <- Womendf[2:nrow(Womendf),]
+Womendf$Name <- paste(Womendf$FName, Womendf$LName, sep=" ")
+Womendf <- Womendf[,c(1, 2,5:16)]
+kable(head(Womendf, n=10))
+```
+
+# Length of course depending on time
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
+ggplot(Womendf, aes(x=Womendf$Res, y=as.numeric(Womendf$C_length))) + geom_point()
 ```
 
 # Rank according to number of penalties
-```{r}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10}
 library(ggplot2)
-ggplot(womenMSdf, aes(x=womenMSdf$Rank, y=womenMSdf$num_Penalties)) + geom_point()
+library(sqldf)
+df <- sqldf("SELECT distinct Rank,sum(T) as total_penalties FROM Womendf GROUP BY Rank ORDER BY Rank")
+ggplot(df, aes(x=as.numeric(df$Rank), y=df$total_penalties)) + geom_point() 
+
+ggplot(df, aes(x=as.numeric(df$Rank), y=df$total_penalties)) + geom_point() +stat_summary(fun.data=mean_cl_normal) + geom_smooth(method='lm')
 ```
+
 # rank according to num of rank points obtained in championship that year
-```{r}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 
 ggplot(womenMSdf, aes(x=womenMSdf$Rank, y=womenMSdf$WC_points)) + geom_point()
 ```
@@ -30,19 +50,23 @@ ggplot(womenMSdf, aes(x=womenMSdf$Rank, y=womenMSdf$WC_points)) + geom_point()
 
 #Number of participants per country
 
-```{r}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(ggplot2)
 ggplot(womenMSdf, aes(x=womenMSdf$Nat)) + geom_bar()
 ```
 
 #Number of penalties per country normalized per number of athletes
 
-```{r}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(ggplot2)
 library(sqldf)
 dfnew <- sqldf("SELECT distinct Nat,count(Nat) as num_nat,sum(num_Penalties) as num_pen FROM womenMSdf GROUP BY Nat")
 ggplot(dfnew, aes(x=dfnew$Nat)) + geom_col(aes(x=dfnew$Nat, y=(dfnew$num_pen/dfnew$num_nat)))
-ggplot(dfnew) + geom_col()
-length(dfnew$num_nat)
+```
+
+
+
+```{r}
+
 ```
 
